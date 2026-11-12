@@ -1,0 +1,27 @@
+{
+  "id": "./",
+  "name": "FutsalData 20-20",
+  "short_name": "FutsalData",
+  "description": "Gestão de tempos, substituições e estatísticas de futsal.",
+  "lang": "pt-PT",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0b131e",
+  "theme_color": "#0b131e",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

@@ -1,0 +1,1159 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>FutsalData 20-20</title>
+  <meta name="theme-color" content="#0b131e">
+  <meta name="description" content="FutsalData 20-20 — gestão de tempos, substituições e estatísticas de futsal.">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
+    body { background-color: #0b131e; color: #ffffff; padding: 12px; display: flex; justify-content: center; }
+    
+    .app { width: 100%; max-width: 420px; background: #152232; border-radius: 16px; padding: 16px; border: 1px solid #1e3146; box-shadow: 0 8px 24px rgba(0,0,0,0.5); }
+    
+    header { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid #1e3146; }
+    .header-top { display: flex; justify-content: space-between; align-items: center; }
+    header h1 { font-size: 1.1rem; color: #9ca3af; }
+    .match-input { width: 100%; background: #1a293a; border: 1px solid #1e3146; color: #00e676; padding: 6px 10px; border-radius: 6px; font-size: 0.8rem; font-weight: bold; text-align: center; }
+
+    .timer-card { background: #1a293a; border-radius: 12px; padding: 14px; text-align: center; margin-bottom: 14px; border: 1px solid #1e3146; }
+    .timer-display { font-size: 3rem; font-family: monospace; font-weight: 800; margin: 6px 0; color: #fff; }
+    
+    .btn-main-toggle { width: 100%; padding: 12px; border-radius: 8px; border: none; font-weight: bold; font-size: 0.95rem; cursor: pointer; text-align: center; margin-bottom: 8px; }
+    .btn-green { background-color: #00e676; color: #000; }
+    .btn-red-running { background-color: #ff5252; color: #fff; }
+
+    .btn-row { display: flex; gap: 6px; flex-wrap: wrap; }
+    .btn { padding: 10px 8px; border-radius: 8px; border: none; font-weight: bold; font-size: 0.8rem; cursor: pointer; flex: 1; text-align: center; min-width: 70px; }
+    .btn-red { background-color: #ff5252; color: #fff; }
+    .btn-blue { background-color: #29b6f6; color: #000; }
+    .btn-adjust-custom { background-color: #000000; color: #ffffff; border: 1px solid #374151; }
+    .btn-reset-custom { background-color: #ffffff; color: #000000; }
+
+    .nav-tabs { display: flex; gap: 3px; margin-bottom: 14px; }
+    .nav-tab { flex: 1; padding: 8px 2px; text-align: center; background: #1a293a; border: 1px solid #1e3146; color: #8ba2b5; font-weight: bold; border-radius: 8px; cursor: pointer; font-size: 0.75rem; }
+    .nav-tab.active { background: #00e676; color: #000; }
+
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    .section-title { font-size: 0.75rem; font-weight: 800; color: #00e676; margin-bottom: 8px; letter-spacing: 0.5px; }
+    
+    .player-card { background: rgba(255,255,255,0.03); border: 1px solid #1e3146; border-radius: 10px; padding: 10px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
+    .player-card.selected { border-color: #D63618; background: rgba(255,145,0,0.2); }
+    
+    .num-badge { background: #263238; color: #ffffff; border-radius: 6px; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; font-weight: bold; margin-right: 10px; font-size: 0.85rem; }
+    .num-badge.active { background: #F79581; color: #ffffff; }
+    .num-badge.gr-badge { background: #27F5D6 !important; color: #000 !important; }
+
+    .timeline-row { background: rgba(255,255,255,0.03); border: 1px solid #1e3146; border-radius: 10px; padding: 10px; margin-bottom: 8px; }
+    .timeline-info { display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 6px; }
+    .timeline-part-section { margin-top: 6px; font-size: 0.7rem; color: #8ba2b5; }
+    .stints-container { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 3px; align-items: center; }
+    
+    .stint-pill { font-size: 0.65rem; font-family: monospace; padding: 3px 6px; border-radius: 4px; font-weight: bold; background: #0FD977; color: #2E2D2D; cursor: help; position: relative; display: inline-flex; align-items: center; }
+    .stint-pill.warning-limit { background: #F2D65C; color: #2E2D2D; }
+    .stint-pill.over-limit { background: #D63618; color: #ffffff; }
+
+    .form-group { margin-bottom: 10px; }
+    .form-group label { display: block; font-size: 0.75rem; color: #8ba2b5; margin-bottom: 4px; }
+    .form-group select, .form-group input { width: 100%; padding: 8px; background: #1a293a; border: 1px solid #1e3146; color: #fff; border-radius: 6px; font-size: 0.8rem; }
+    
+    .record-card { background: rgba(255,255,255,0.03); border: 1px solid #1e3146; border-radius: 8px; padding: 8px 10px; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; }
+
+    .modal { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.85); display: none; align-items: center; justify-content: center; padding: 16px; z-index: 10; }
+    .modal.active { display: flex; }
+    .modal-box { background: #152232; padding: 16px; border-radius: 12px; width: 100%; max-width: 320px; border: 1px solid #1e3146; max-height: 90vh; overflow-y: auto; }
+    .modal-box input, .modal-box select { width: 100%; padding: 8px; margin: 4px 0 10px 0; background: #1a293a; border: 1px solid #1e3146; color: #fff; border-radius: 6px; font-size: 0.8rem; }
+  </style>
+</head>
+<body>
+
+  <div class="app">
+    <header>
+      <div class="header-top">
+        <h1>⏱ <span style="font-weight: 300;">FUTSAL</span><span style="font-weight: 850;">DATA</span> <span style="font-weight: 850; color:#ff5252;">20-20</span></h1>
+      </div>
+      <input type="text" id="matchTitleInput" class="match-input" placeholder="Sub-19 vs Equipa" oninput="updateMatchTitle()">
+    </header>
+
+    <div class="nav-tabs">
+      <div class="nav-tab active" onclick="switchTab('jogo', this)">Jogo</div>
+      <div class="nav-tab" onclick="switchTab('timeline', this)">Timeline</div>
+      <div class="nav-tab" onclick="switchTab('registos', this)">Registos</div>
+      <div class="nav-tab" onclick="switchTab('plantel', this)">Equipa</div>
+    </div>
+
+    <!-- JOGO -->
+    <div id="tab-jogo" class="tab-content active">
+      <div class="timer-card">
+        <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:#8ba2b5;">
+          <span id="period-badge" style="color:#00e676; font-weight:bold;">1.ª PARTE</span>
+          <span>20:00 ➔ 00:00</span>
+        </div>
+        <div class="timer-display" id="timer">20:00</div>
+        
+        <button id="btn-toggle" class="btn-main-toggle btn-green" onclick="toggleTimer()">▶ Iniciar Jogo</button>
+        
+        <div class="btn-row">
+          <button class="btn btn-adjust-custom" onclick="openAdjustModal()">✎ Ajustar</button>
+          <button class="btn btn-blue" onclick="switchPeriod()">Mudar Parte</button>
+          <button class="btn btn-reset-custom" onclick="resetMatch()">↺ Reset</button>
+        </div>
+      </div>
+
+      <div class="section-title">EM CAMPO (escolhe quem sai)</div>
+      <div id="in-field-list"></div>
+
+      <div class="section-title" style="margin-top: 14px;">NO BANCO (seleciona quem entra)</div>
+      <div id="bench-list"></div>
+    </div>
+
+    <!-- TIMELINE -->
+    <div id="tab-timeline" class="tab-content">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+        <span class="section-title" style="margin:0;">Timeline</span>
+        <div style="display:flex; gap:4px;">
+          <button class="btn btn-blue" style="padding:6px 8px; font-size:0.7rem;" onclick="openAddStintModal()">+ Ent/Sai</button>
+          <button class="btn btn-green" style="padding:6px 8px; font-size:0.7rem;" onclick="exportCSV()">↓ Export</button>
+        </div>
+      </div>
+      <div id="timeline-list"></div>
+    </div>
+
+    <!-- REGISTOS -->
+    <div id="tab-registos" class="tab-content">
+      <div class="section-title">Golos e Disciplina</div>
+      <div style="background: rgba(255,255,255,0.03); border: 1px solid #1e3146; border-radius: 10px; padding: 12px; margin-bottom: 14px;">
+        <div class="form-group">
+          <label>Registo</label>
+          <select id="regType" onchange="toggleRecordTypeFields()">
+            <option value="golo_marcado">Golo Marcado</option>
+            <option value="golo_sofrido">Golo Sofrido</option>
+            <option value="cartao">Cartão</option>
+          </select>
+        </div>
+        <div class="form-group" id="cardTypeGroup" style="display:none;">
+          <label>Cartão</label>
+          <select id="regCardColor">
+            <option value="Amarelo">🟨 Amarelo</option>
+            <option value="Vermelho">🟥 Vermelho</option>
+          </select>
+        </div>
+        <div class="form-group" id="playerSelectGroup">
+          <label>Jogador</label>
+          <select id="regPlayerSelect"></select>
+        </div>
+        <div class="form-group">
+          <label>Tempo (min:seg)</label>
+          <div style="display:flex; gap:6px;">
+            <input type="number" id="regMin" placeholder="min" min="0" max="60" style="flex:1;">
+            <input type="number" id="regSec" placeholder="seg" min="0" max="59" style="flex:1;">
+            <button class="btn btn-blue" style="flex:none; padding:6px 10px; font-size:0.75rem;" onclick="captureCurrentTime()">Atual</button>
+          </div>
+        </div>
+        <button class="btn btn-green" style="width:100%; margin-top:6px;" onclick="saveRecord()">Adicionar Registo</button>
+      </div>
+
+      <div class="section-title">Registos do jogo atual</div>
+      <div id="records-list"></div>
+
+      <div style="border-top:1px solid #1e3146; margin:16px 0 12px; padding-top:14px;">
+        <div class="section-title">Arquivo de jogos</div>
+        <p style="font-size:0.7rem; color:#8ba2b5; line-height:1.45; margin-bottom:10px;">Guarda uma fotografia completa do jogo neste dispositivo. Podes consultar, exportar ou apagar cada relatório.</p>
+        <button class="btn btn-green" style="width:100%; margin-bottom:8px;" onclick="saveMatchReport()">Guardar relatório deste jogo</button>
+        <div class="btn-row" style="margin-bottom:10px;">
+          <button class="btn btn-blue" onclick="exportReportsBackup()">↑ Cópia de segurança</button>
+          <button class="btn btn-adjust-custom" onclick="document.getElementById('importReportsFile').click()">↓ Importar cópia</button>
+        </div>
+        <input id="importReportsFile" type="file" accept="application/json,.json" style="display:none" onchange="importReportsBackup(event)">
+        <div id="saved-reports-list"></div>
+      </div>
+    </div>
+
+    <!-- EQUIPA -->
+    <div id="tab-plantel" class="tab-content">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+        <span class="section-title" style="margin:0;">Equipa | Escolher 5 Inicial</span>
+        <button class="btn btn-green" style="padding:6px 10px; font-size:0.75rem; flex:none;" onclick="openAddPlayerModal()">+ Adicionar</button>
+      </div>
+      <p style="font-size:0.7rem; color:#8ba2b5; margin-bottom:8px;">Alterar jogador (GR ou campo) e escolher 5 inicial e suplentes.</p>
+      <div id="roster-list"></div>
+    </div>
+  </div>
+
+  <!-- MODAL AJUSTAR CRONÓMETRO -->
+  <div id="modal-adjust" class="modal">
+    <div class="modal-box">
+      <h3 style="font-size: 1rem; margin-bottom: 8px;">Ajustar Cronómetro</h3>
+      <label style="font-size:0.75rem; color:#8ba2b5;">Minutos:</label>
+      <input type="number" id="adj-min" placeholder="Minutos" min="0" max="20">
+      <label style="font-size:0.75rem; color:#8ba2b5;">Segundos:</label>
+      <input type="number" id="adj-sec" placeholder="Segundos" min="0" max="59">
+      <div class="btn-row">
+        <button class="btn" style="background:#263238; color:#fff;" onclick="closeModal('modal-adjust')">Cancelar</button>
+        <button class="btn btn-green" onclick="applyAdjust()">Aplicar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL ADICIONAR STINT MANUAL -->
+  <div id="modal-add-stint" class="modal">
+    <div class="modal-box">
+      <h3 style="font-size: 1rem; margin-bottom: 8px;">Adicionar Manual</h3>
+      <label style="font-size:0.75rem; color:#8ba2b5;">Atleta</label>
+      <select id="stint-player-select"></select>
+      <label style="font-size:0.75rem; color:#8ba2b5;">Parte</label>
+      <select id="stint-part-select">
+        <option value="1">1P</option>
+        <option value="2">2P</option>
+      </select>
+      <label style="font-size:0.75rem; color:#8ba2b5;">In (min:seg)</label>
+      <div style="display:flex; gap:6px;">
+        <input type="number" id="stint-in-min" placeholder="min" min="0" max="20" style="flex:1;">
+        <input type="number" id="stint-in-sec" placeholder="seg" min="0" max="59" style="flex:1;">
+      </div>
+      <label style="font-size:0.75rem; color:#8ba2b5;">Out (min:seg)</label>
+      <div style="display:flex; gap:6px;">
+        <input type="number" id="stint-out-min" placeholder="min" min="0" max="20" style="flex:1;">
+        <input type="number" id="stint-out-sec" placeholder="seg" min="0" max="59" style="flex:1;">
+      </div>
+      <div class="btn-row" style="margin-top:10px;">
+        <button class="btn" style="background:#263238; color:#fff;" onclick="closeModal('modal-add-stint')">Cancelar</button>
+        <button class="btn btn-green" onclick="saveManualStint()">Guardar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL ADICIONAR ATLETA -->
+  <div id="modal-add" class="modal">
+    <div class="modal-box">
+      <h3 style="font-size: 1rem; margin-bottom: 8px;">Novo Jogador</h3>
+      <label style="font-size:0.75rem; color:#8ba2b5;">Camisola</label>
+      <input type="number" id="new-num" placeholder="Ex: 10">
+      <label style="font-size:0.75rem; color:#8ba2b5;">Jogador</label>
+      <input type="text" id="new-name" placeholder="Ex: Tomás">
+      <label style="font-size:0.75rem; color:#8ba2b5;">Posição:</label>
+      <select id="new-pos">
+        <option value="jogador">Jogador</option>
+        <option value="gr">GR</option>
+      </select>
+      <div class="btn-row">
+        <button class="btn" style="background:#263238; color:#fff;" onclick="closeModal('modal-add')">Cancelar</button>
+        <button class="btn btn-green" onclick="savePlayer()">Guardar</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let defaultPlayers = [
+      { id: 1, number: '1', name: 'Cabral', position: 'gr', inField: true, time1P: 0, time2P: 0, stintCurrent: 0, stintStartTime: null, benchStartTime: 1200, stints1P: [], stints2P: [] },
+      { id: 4, number: '4', name: 'Gouveia', position: 'jogador', inField: true, time1P: 0, time2P: 0, stintCurrent: 0, stintStartTime: null, benchStartTime: 1200, stints1P: [], stints2P: [] },
+      { id: 8, number: '8', name: 'Goncalo', position: 'jogador', inField: true, time1P: 0, time2P: 0, stintCurrent: 0, stintStartTime: null, benchStartTime: 1200, stints1P: [], stints2P: [] },
+      { id: 9, number: '9', name: 'Afonso', position: 'jogador', inField: true, time1P: 0, time2P: 0, stintCurrent: 0, stintStartTime: null, benchStartTime: 1200, stints1P: [], stints2P: [] },
+      { id: 7, number: '7', name: 'Samuel', position: 'jogador', inField: true, time1P: 0, time2P: 0, stintCurrent: 0, stintStartTime: null, benchStartTime: 1200, stints1P: [], stints2P: [] },
+      { id: 10, number: '10', name: 'Tommy', position: 'jogador', inField: false, time1P: 0, time2P: 0, stintCurrent: 0, stintStartTime: null, benchStartTime: 1200, stints1P: [], stints2P: [] },
+      { id: 17, number: '17', name: 'Francisco', position: 'jogador', inField: false, time1P: 0, time2P: 0, stintCurrent: 0, stintStartTime: null, benchStartTime: 1200, stints1P: [], stints2P: [] },
+      { id: 20, number: '20', name: 'Dinis', position: 'jogador', inField: false, time1P: 0, time2P: 0, stintCurrent: 0, stintStartTime: null, benchStartTime: 1200, stints1P: [], stints2P: [] },
+      { id: 13, number: '13', name: 'Kiko', position: 'jogador', inField: false, time1P: 0, time2P: 0, stintCurrent: 0, stintStartTime: null, benchStartTime: 1200, stints1P: [], stints2P: [] },
+      { id: 14, number: '14', name: 'Teixeira', position: 'jogador', inField: false, time1P: 0, time2P: 0, stintCurrent: 0, stintStartTime: null, benchStartTime: 1200, stints1P: [], stints2P: [] },
+      { id: 5, number: '5', name: 'Sebas', position: 'jogador', inField: false, time1P: 0, time2P: 0, stintCurrent: 0, stintStartTime: null, benchStartTime: 1200, stints1P: [], stints2P: [] },
+      { id: 24, number: '24', name: 'Gui', position: 'gr', inField: false, time1P: 0, time2P: 0, stintCurrent: 0, stintStartTime: null, benchStartTime: 1200, stints1P: [], stints2P: [] }
+    ];
+
+    let matchData = JSON.parse(localStorage.getItem('futsal_single_match_store_v10')) || {
+      title: 'Sub-19 vs Equipa',
+      players: JSON.parse(JSON.stringify(defaultPlayers)),
+      records: []
+    };
+
+    if (Array.isArray(matchData)) {
+      matchData = { title: 'Sub-19 vs Equipa', players: matchData, records: [] };
+    }
+    if (!matchData.records) matchData.records = [];
+    matchData.players.forEach(p => {
+      if (p.stintCurrent === undefined) p.stintCurrent = 0;
+      if (p.stintStartTime === undefined) p.stintStartTime = null;
+      if (p.benchStartTime === undefined) p.benchStartTime = 1200;
+      if (p.stints1P === undefined) p.stints1P = [];
+      if (p.stints2P === undefined) p.stints2P = [];
+      if (p.position === undefined) p.position = 'jogador';
+    });
+
+    let timerSec = 1200; // 20 minutos
+    let timerRunning = false;
+    let timerInt = null;
+    let period = 1;
+    let selectedOutId = null;
+
+    function formatTime(sec) {
+      let m = Math.floor(sec / 60);
+      let s = sec % 60;
+      return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+    }
+
+    function updateDisplay() {
+      document.getElementById('timer').innerText = formatTime(timerSec);
+    }
+
+    function updateMatchTitle() {
+      matchData.title = document.getElementById('matchTitleInput').value;
+      saveData();
+    }
+
+    function initStintsOnLoad() {
+      if (matchData && matchData.players) {
+        matchData.players.forEach(p => {
+          if (p.inField && p.stintStartTime === null) {
+            p.stintStartTime = timerSec;
+          }
+        });
+      }
+    }
+
+    function pushCurrentStint(p) {
+      if (p.stintCurrent > 0) {
+        let stintObj = {
+          duration: p.stintCurrent,
+          start: p.stintStartTime !== null ? formatTime(p.stintStartTime) : "--:--",
+          end: formatTime(timerSec)
+        };
+        if (period === 1) p.stints1P.push(stintObj);
+        else p.stints2P.push(stintObj);
+        p.stintCurrent = 0;
+        p.stintStartTime = null;
+      }
+      p.benchStartTime = timerSec;
+    }
+
+    function toggleTimer() {
+      let btn = document.getElementById('btn-toggle');
+      if (timerRunning) {
+        clearInterval(timerInt);
+        timerRunning = false;
+        btn.innerText = '▶ Iniciar Jogo';
+        btn.className = 'btn-main-toggle btn-green';
+      } else {
+        timerRunning = true;
+        btn.innerText = '❚❚ Pausar Jogo';
+        btn.className = 'btn-main-toggle btn-red-running';
+        
+        if (matchData && matchData.players) {
+          matchData.players.forEach(p => {
+            if (p.inField && p.stintStartTime === null) {
+              p.stintStartTime = timerSec;
+            }
+          });
+        }
+
+        timerInt = setInterval(() => {
+          if (timerSec > 0) {
+            timerSec--;
+          } else {
+            handlePeriodEnd();
+            return;
+          }
+          
+          if (matchData && matchData.players) {
+            matchData.players.forEach(p => {
+              if (p.inField) {
+                if (period === 1) p.time1P++; else p.time2P++;
+                p.stintCurrent++;
+              }
+            });
+          }
+          updateDisplay();
+          renderUI();
+        }, 1000);
+      }
+    }
+
+    function handlePeriodEnd() {
+      if (timerRunning) {
+        clearInterval(timerInt);
+        timerRunning = false;
+        let btn = document.getElementById('btn-toggle');
+        btn.innerText = '▶ Iniciar Jogo';
+        btn.className = 'btn-main-toggle btn-green';
+      }
+
+      if (period === 1) {
+        if (matchData && matchData.players) {
+          matchData.players.forEach(p => {
+            if (p.inField) pushCurrentStint(p);
+          });
+        }
+        period = 2;
+        document.getElementById('period-badge').innerText = '2.ª PARTE';
+        timerSec = 1200;
+        
+        if (matchData && matchData.players) {
+          matchData.players.forEach(p => {
+            if (p.inField) p.stintStartTime = timerSec;
+            p.benchStartTime = timerSec;
+          });
+        }
+
+        updateDisplay();
+        renderUI();
+        alert('Fim da 1P. Crono parado.');
+      } else {
+        alert('Fim da 2P');
+      }
+    }
+
+    function openAdjustModal() {
+      document.getElementById('adj-min').value = Math.floor(timerSec / 60);
+      document.getElementById('adj-sec').value = timerSec % 60;
+      document.getElementById('modal-adjust').classList.add('active');
+    }
+
+    function applyAdjust() {
+      let m = parseInt(document.getElementById('adj-min').value) || 0;
+      let s = parseInt(document.getElementById('adj-sec').value) || 0;
+      let newTimerSec = m * 60 + s;
+      
+      let diffSec = timerSec - newTimerSec; 
+      timerSec = newTimerSec;
+
+      if (diffSec > 0 && matchData && matchData.players) {
+        matchData.players.forEach(p => {
+          if (p.inField) {
+            if (period === 1) p.time1P += diffSec;
+            else p.time2P += diffSec;
+            p.stintCurrent += diffSec;
+          }
+        });
+      }
+
+      updateDisplay();
+      renderUI();
+      closeModal('modal-adjust');
+      saveData();
+    }
+
+    function switchPeriod() {
+      if (matchData && matchData.players) {
+        matchData.players.forEach(p => {
+          if (p.inField) pushCurrentStint(p);
+        });
+      }
+      period = period === 1 ? 2 : 1;
+      document.getElementById('period-badge').innerText = `${period}.ª PARTE`;
+      timerSec = 1200;
+      
+      if (matchData && matchData.players) {
+        matchData.players.forEach(p => {
+          if (p.inField) p.stintStartTime = timerSec;
+          p.benchStartTime = timerSec;
+        });
+      }
+
+      updateDisplay();
+      renderUI();
+      saveData();
+    }
+
+    function resetMatch() {
+      if (confirm('Reiniciar os tempos de jogo e registos?')) {
+        if (timerRunning) toggleTimer();
+        timerSec = 1200;
+        period = 1;
+        document.getElementById('period-badge').innerText = '1.ª PARTE';
+        if (matchData && matchData.players) {
+          matchData.players.forEach((p, idx) => {
+            p.time1P = 0; p.time2P = 0; p.stintCurrent = 0; p.stintStartTime = (idx < 5) ? timerSec : null; p.benchStartTime = 1200; p.stints1P = []; p.stints2P = []; p.inField = (idx < 5);
+          });
+        }
+        matchData.records = [];
+        selectedOutId = null;
+        updateDisplay();
+        renderUI();
+        saveData();
+      }
+    }
+
+    function saveData() {
+      localStorage.setItem('futsal_single_match_store_v10', JSON.stringify(matchData));
+    }
+
+    function switchTab(tabId, el) {
+      document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.nav-tab').forEach(n => n.classList.remove('active'));
+      document.getElementById('tab-' + tabId).classList.add('active');
+      el.classList.add('active');
+      renderUI();
+    }
+
+    function handlePlayerClick(id) {
+      let list = matchData.players || [];
+      let player = list.find(p => p.id === id);
+      if (!player) return;
+
+      if (player.inField) {
+        // Clicar num jogador em campo: seleciona-o para sair ou desseleciona se já estivesse selecionado
+        selectedOutId = (selectedOutId === id) ? null : id;
+      } else {
+        // Clicar num jogador do banco:
+        // Só executa a substituição se estiver um jogador em campo pré-selecionado (selectedOutId !== null).
+        // Caso contrário, se nenhum jogador em campo estiver selecionado, não faz absolutamente nada!
+        if (selectedOutId !== null) {
+          let outPlayer = list.find(p => p.id === selectedOutId);
+          if (outPlayer) {
+            if (player.position !== outPlayer.position) {
+              alert('GR por GR ou jogador por jogador');
+              return;
+            }
+
+            outPlayer.inField = false;
+            pushCurrentStint(outPlayer);
+
+            player.inField = true;
+            player.stintCurrent = 0;
+            player.stintStartTime = timerSec;
+          }
+          selectedOutId = null;
+          saveData();
+        }
+      }
+      renderUI();
+    }
+
+    function toggleRecordTypeFields() {
+      let type = document.getElementById('regType').value;
+      document.getElementById('cardTypeGroup').style.display = (type === 'cartao') ? 'block' : 'none';
+      document.getElementById('playerSelectGroup').style.display = (type === 'golo_sofrido') ? 'none' : 'block';
+    }
+
+    function captureCurrentTime() {
+      let elapsedSec = 1200 - timerSec;
+      document.getElementById('regMin').value = Math.floor(elapsedSec / 60);
+      document.getElementById('regSec').value = elapsedSec % 60;
+    }
+
+    function saveRecord() {
+      let type = document.getElementById('regType').value;
+      let playerId = document.getElementById('regPlayerSelect').value;
+      let min = document.getElementById('regMin').value.trim();
+      let sec = document.getElementById('regSec').value.trim();
+      let cardColor = document.getElementById('regCardColor').value;
+
+      if (min === '' || sec === '') {
+        return alert('Por favor preencha o tempo do registo.');
+      }
+
+      let timeFormatted = `${min.padStart(2,'0')}:${sec.padStart(2,'0')}`;
+      let record = {
+        id: Date.now(),
+        type: type,
+        cardColor: cardColor,
+        time: timeFormatted,
+        period: period
+      };
+
+      if (type === 'golo_sofrido') {
+        record.playerNum = '-';
+        record.playerName = 'Adversário';
+      } else {
+        if (!playerId) return alert('Selecione o atleta.');
+        let player = matchData.players.find(p => p.id == playerId);
+        if (!player) return;
+        record.playerNum = player.number;
+        record.playerName = player.name;
+      }
+
+      if (!matchData.records) matchData.records = [];
+      matchData.records.push(record);
+      saveData();
+
+      document.getElementById('regMin').value = '';
+      document.getElementById('regSec').value = '';
+      renderUI();
+    }
+
+    function deleteRecord(recId) {
+      if (confirm('Eliminar este registo?')) {
+        matchData.records = matchData.records.filter(r => r.id !== recId);
+        saveData();
+        renderUI();
+      }
+    }
+
+    function togglePlayerPosition(id) {
+      let p = matchData.players.find(x => x.id === id);
+      if (p) {
+        p.position = p.position === 'gr' ? 'jogador' : 'gr';
+        saveData();
+        renderUI();
+      }
+    }
+
+    function toggleRosterFieldStatus(id) {
+      let player = matchData.players.find(p => p.id === id);
+      if (!player) return;
+
+      if (player.inField) {
+        player.inField = false;
+        pushCurrentStint(player);
+      } else {
+        let grInField = matchData.players.filter(x => x.inField && x.position === 'gr').length;
+        let fieldInField = matchData.players.filter(x => x.inField && x.position === 'jogador').length;
+
+        if (player.position === 'gr' && grInField >= 1) {
+          return alert('Já está um GR em campo');
+        }
+        if (player.position === 'jogador' && fieldInField >= 4) {
+          return alert('Já estão 4 jogadores de campo');
+        }
+
+        player.inField = true;
+        player.stintStartTime = timerSec;
+        player.stintCurrent = 0;
+      }
+      saveData();
+      renderUI();
+    }
+
+    function openAddStintModal() {
+      let selectHtml = '';
+      (matchData.players || []).forEach(p => {
+        selectHtml += `<option value="${p.id}">#${p.number} ${p.name}</option>`;
+      });
+      document.getElementById('stint-player-select').innerHTML = selectHtml;
+      document.getElementById('stint-in-min').value = '';
+      document.getElementById('stint-in-sec').value = '';
+      document.getElementById('stint-out-min').value = '';
+      document.getElementById('stint-out-sec').value = '';
+      document.getElementById('modal-add-stint').classList.add('active');
+    }
+
+    function saveManualStint() {
+      let playerId = document.getElementById('stint-player-select').value;
+      let part = parseInt(document.getElementById('stint-part-select').value);
+      let inMin = parseInt(document.getElementById('stint-in-min').value);
+      let inSec = parseInt(document.getElementById('stint-in-sec').value);
+      let outMin = parseInt(document.getElementById('stint-out-min').value);
+      let outSec = parseInt(document.getElementById('stint-out-sec').value);
+
+      if (isNaN(inMin) || isNaN(inSec) || isNaN(outMin) || isNaN(outSec)) {
+        return alert('Por favor preencha todos os campos de tempo corretamente.');
+      }
+
+      let inTotalSec = inMin * 60 + inSec;
+      let outTotalSec = outMin * 60 + outSec;
+
+      if (inTotalSec <= outTotalSec) {
+        return alert('O tempo de Entrada deve ser superior ao tempo de Saída.');
+      }
+
+      let duration = inTotalSec - outTotalSec;
+      let stintObj = {
+        duration: duration,
+        start: formatTime(inTotalSec),
+        end: formatTime(outTotalSec)
+      };
+
+      let player = matchData.players.find(p => p.id == playerId);
+      if (!player) return;
+
+      if (part === 1) {
+        player.stints1P.push(stintObj);
+        player.time1P += duration;
+      } else {
+        player.stints2P.push(stintObj);
+        player.time2P += duration;
+      }
+
+      saveData();
+      closeModal('modal-add-stint');
+      renderUI();
+    }
+
+    // Arquivo local de relatórios (IndexedDB), separado dos dados do jogo em curso.
+    const REPORT_DB_NAME = 'FutsalDataReportsDB';
+    const REPORT_DB_VERSION = 1;
+    function openReportsDB() {
+      return new Promise((resolve, reject) => {
+        if (!('indexedDB' in window)) return reject(new Error('Este navegador não suporta arquivo local.'));
+        const req = indexedDB.open(REPORT_DB_NAME, REPORT_DB_VERSION);
+        req.onupgradeneeded = () => {
+          const db = req.result;
+          if (!db.objectStoreNames.contains('reports')) db.createObjectStore('reports', { keyPath: 'id' });
+        };
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error || new Error('Não foi possível abrir o arquivo.'));
+      });
+    }
+    async function reportDB(action, value) {
+      const db = await openReportsDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction('reports', action === 'getAll' ? 'readonly' : 'readwrite');
+        const store = tx.objectStore('reports');
+        let req;
+        if (action === 'put') req = store.put(value);
+        else if (action === 'delete') req = store.delete(value);
+        else req = store.getAll();
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error || new Error('Erro no arquivo de relatórios.'));
+        tx.oncomplete = () => db.close();
+        tx.onerror = () => { db.close(); reject(tx.error || new Error('Erro ao guardar relatório.')); };
+      });
+    }
+    function cloneForReport(value) { return JSON.parse(JSON.stringify(value)); }
+    function buildReportSnapshot() {
+      const snap = cloneForReport(matchData);
+      snap.players = (snap.players || []).map(p => {
+        if (p.inField && p.stintCurrent > 0) {
+          const stint = { duration: p.stintCurrent, start: p.stintStartTime !== null ? formatTime(p.stintStartTime) : '--:--', end: formatTime(timerSec) };
+          if (period === 1) p.stints1P.push(stint); else p.stints2P.push(stint);
+        }
+        return p;
+      });
+      snap.savedAt = new Date().toISOString();
+      snap.matchDate = new Date().toLocaleDateString('pt-PT');
+      snap.periodAtSave = period;
+      snap.timerAtSave = formatTime(timerSec);
+      snap.score = {
+        for: (snap.records || []).filter(r => r.type === 'golo_marcado').length,
+        against: (snap.records || []).filter(r => r.type === 'golo_sofrido').length
+      };
+      snap.id = 'match-' + Date.now() + '-' + Math.random().toString(36).slice(2,8);
+      return snap;
+    }
+    async function saveMatchReport() {
+      const title = (matchData.title || '').trim();
+      if (!title) return alert('Indica primeiro o nome do jogo no cabeçalho.');
+      if (!confirm(`Guardar o relatório de "${title}" no arquivo deste dispositivo?`)) return;
+      try {
+        const report = buildReportSnapshot();
+        await reportDB('put', report);
+        await renderSavedReports();
+        alert('Relatório guardado no dispositivo.');
+      } catch (err) { alert('Não foi possível guardar o relatório: ' + err.message); }
+    }
+    function escapeReportHTML(value) {
+      return String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+    async function renderSavedReports() {
+      const host = document.getElementById('saved-reports-list');
+      if (!host) return;
+      try {
+        const reports = (await reportDB('getAll')).sort((a,b) => (b.savedAt || '').localeCompare(a.savedAt || ''));
+        host.innerHTML = '';
+        if (!reports.length) {
+          host.innerHTML = '<p style="font-size:0.72rem;color:#8ba2b5;text-align:center;padding:10px 0;">Ainda não existem relatórios guardados.</p>';
+          return;
+        }
+        reports.forEach(r => {
+          const card = document.createElement('div');
+          card.className = 'record-card';
+          card.style.display = 'block';
+          const date = r.matchDate || (r.savedAt ? new Date(r.savedAt).toLocaleDateString('pt-PT') : 'Sem data');
+          const goals = r.score || {for:0,against:0};
+          const players = (r.players || []).slice().sort((a,b) => (b.time1P+b.time2P)-(a.time1P+a.time2P));
+          const detailsId = 'report-details-' + r.id.replace(/[^a-zA-Z0-9_-]/g,'');
+          card.innerHTML = `<div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start;">
+            <div style="min-width:0;"><strong>${escapeReportHTML(r.title || 'Jogo sem título')}</strong><div style="font-size:0.68rem;color:#8ba2b5;margin-top:3px;">${escapeReportHTML(date)} · ${players.length} atletas</div></div>
+            <strong style="color:#00e676;white-space:nowrap;">${goals.for}–${goals.against}</strong>
+          </div>
+          <div class="btn-row" style="margin-top:9px;">
+            <button class="btn btn-blue" style="font-size:0.68rem;padding:7px 5px;" onclick="toggleReportDetails('${detailsId}')">Consultar</button>
+            <button class="btn btn-green" style="font-size:0.68rem;padding:7px 5px;" onclick="exportOneReport('${r.id}')">Exportar</button>
+            <button class="btn btn-red" style="font-size:0.68rem;padding:7px 5px;" onclick="deleteSavedReport('${r.id}')">Apagar</button>
+          </div>
+          <div id="${detailsId}" style="display:none;margin-top:10px;border-top:1px solid #1e3146;padding-top:8px;">
+            <div style="font-size:0.7rem;color:#00e676;font-weight:bold;margin-bottom:5px;">TEMPO DE JOGO POR ATLETA</div>
+            ${players.map(p => `<div style="display:flex;justify-content:space-between;font-size:0.7rem;padding:3px 0;border-bottom:1px solid #24364a;"><span>#${escapeReportHTML(p.number)} ${escapeReportHTML(p.name)}${p.position==='gr'?' (GR)':''}</span><strong>${formatTime((p.time1P||0)+(p.time2P||0))}</strong></div>`).join('')}
+            <div style="font-size:0.7rem;color:#00e676;font-weight:bold;margin:10px 0 5px;">GOLOS E DISCIPLINA</div>
+            ${(r.records||[]).length ? r.records.map(x => `<div style="font-size:0.7rem;padding:3px 0;">${escapeReportHTML(x.time)} · ${escapeReportHTML(x.period)}.ªP · ${escapeReportHTML(x.type==='golo_marcado'?'Golo marcado':x.type==='golo_sofrido'?'Golo sofrido':'Cartão '+x.cardColor)} · ${escapeReportHTML(x.playerName||'')}</div>`).join('') : '<div style="font-size:0.7rem;color:#8ba2b5;">Sem ocorrências registadas.</div>'}
+          </div>`;
+          host.appendChild(card);
+        });
+      } catch (err) { host.innerHTML = `<p style="font-size:0.7rem;color:#ff8a80;">Erro ao carregar arquivo: ${escapeReportHTML(err.message)}</p>`; }
+    }
+    function toggleReportDetails(id) {
+      const el = document.getElementById(id);
+      if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
+    }
+    async function deleteSavedReport(id) {
+      if (!confirm('Apagar definitivamente este relatório guardado?')) return;
+      try { await reportDB('delete', id); await renderSavedReports(); }
+      catch (err) { alert('Não foi possível apagar: ' + err.message); }
+    }
+    async function exportOneReport(id) {
+      try {
+        const r = (await reportDB('getAll')).find(x => x.id === id);
+        if (!r) return alert('Relatório não encontrado.');
+        const csv = reportToCSV(r);
+        downloadText(csv, `FutsalData_${safeFileName(r.title)}.csv`, 'text/csv;charset=utf-8;');
+      } catch (err) { alert('Erro ao exportar: ' + err.message); }
+    }
+    function safeFileName(s) { return String(s || 'jogo').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9_-]+/g,'_').slice(0,50); }
+    function reportToCSV(r) {
+      let csv = '\uFEFF' + `Jogo;${String(r.title||'').replace(/;/g,',')}\nData;${r.matchDate||''}\nResultado;${r.score?.for||0}-${r.score?.against||0}\n\n`;
+      csv += 'Atleta;Posição;Parte;Stint;Duração;Entrada;Saída\n';
+      (r.players||[]).forEach(p => ['stints1P','stints2P'].forEach((key,idx) => (p[key]||[]).forEach((st,i) => {
+        csv += `"#${p.number} ${String(p.name).replace(/"/g,'""')}";${p.position==='gr'?'GR':'Jogador'};${idx+1}P;S${i+1};${formatTime(st.duration||0)};${st.start||''};${st.end||''}\n`;
+      })));
+      csv += '\nTipo;Detalhe;Atleta;Tempo;Parte\n';
+      (r.records||[]).forEach(x => csv += `${x.type};${x.type==='cartao'?'Cartão '+x.cardColor:x.type==='golo_marcado'?'Golo marcado':'Golo sofrido'};${x.playerName||''};${x.time||''};${x.period||''}\n`);
+      return csv;
+    }
+    function downloadText(content, filename, type) {
+      const blob = new Blob([content], {type}); const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+    async function exportReportsBackup() {
+      try {
+        const reports = await reportDB('getAll');
+        const backup = {app:'FutsalData 20-20',formatVersion:1,exportedAt:new Date().toISOString(),reports};
+        downloadText(JSON.stringify(backup,null,2), `FutsalData_backup_${new Date().toISOString().slice(0,10)}.json`, 'application/json');
+      } catch (err) { alert('Não foi possível criar a cópia: ' + err.message); }
+    }
+    async function importReportsBackup(event) {
+      const file = event.target.files && event.target.files[0]; event.target.value = '';
+      if (!file) return;
+      try {
+        const data = JSON.parse(await file.text());
+        if (!data || !Array.isArray(data.reports)) throw new Error('O ficheiro não contém uma cópia de relatórios FutsalData válida.');
+        if (!confirm(`Importar ${data.reports.length} relatório(s)? Os relatórios com o mesmo identificador serão atualizados.`)) return;
+        for (const r of data.reports) {
+          if (!r || typeof r.id !== 'string' || !Array.isArray(r.players)) continue;
+          await reportDB('put', r);
+        }
+        await renderSavedReports(); alert('Cópia importada com sucesso.');
+      } catch (err) { alert('Não foi possível importar a cópia: ' + err.message); }
+    }
+
+    function renderUI() {
+      if (!matchData) matchData = { title: 'Sub-19 vs Equipa', players: [], records: [] };
+      let list = matchData.players;
+      let records = matchData.records || [];
+      
+      let inFieldContainer = document.getElementById('in-field-list');
+      let benchContainer = document.getElementById('bench-list');
+      let rosterContainer = document.getElementById('roster-list');
+      let timelineContainer = document.getElementById('timeline-list');
+      let recordsContainer = document.getElementById('records-list');
+      let regPlayerSelect = document.getElementById('regPlayerSelect');
+
+      inFieldContainer.innerHTML = '';
+      benchContainer.innerHTML = '';
+      rosterContainer.innerHTML = '';
+      timelineContainer.innerHTML = '';
+      recordsContainer.innerHTML = '';
+
+      let selectHtml = '';
+      list.forEach(p => {
+        selectHtml += `<option value="${p.id}">#${p.number} ${p.name} (${p.position.toUpperCase()})</option>`;
+      });
+      regPlayerSelect.innerHTML = selectHtml;
+
+      // Ordenar em campo: GR primeiro, depois jogadores de campo
+      let inFieldPlayers = list.filter(p => p.inField);
+      inFieldPlayers.sort((a, b) => (b.position === 'gr') - (a.position === 'gr'));
+
+      // Ordenar banco: Jogadores de campo primeiro, GR suplente na última posição
+      let benchPlayers = list.filter(p => !p.inField);
+      benchPlayers.sort((a, b) => {
+        if (a.position === 'gr' && b.position !== 'gr') return 1;
+        if (b.position === 'gr' && a.position !== 'gr') return -1;
+        return (b.time1P + b.time2P) - (a.time1P + a.time2P);
+      });
+
+      inFieldPlayers.forEach(p => renderPlayerCard(p, inFieldContainer));
+      benchPlayers.forEach(p => renderPlayerCard(p, benchContainer));
+
+      list.forEach(p => {
+        let totalTime = p.time1P + p.time2P;
+
+        // Aba Equipa
+        let rcard = document.createElement('div');
+        rcard.className = `player-card ${p.inField ? 'selected' : ''}`;
+        rcard.innerHTML = `
+          <div style="display:flex; align-items:center;">
+            <div class="num-badge ${p.position === 'gr' ? 'gr-badge' : (p.inField ? 'active' : '')}">${p.number}</div>
+            <div>
+              <strong>${p.name}</strong>
+              <div style="font-size:0.65rem; color:#8ba2b5;">${p.position === 'gr' ? 'GR' : 'Jogador'} | <strong>${p.inField ? '5 inicial' : 'Suplente'}</strong></div>
+            </div>
+          </div>
+          <div style="display:flex; gap:3px; align-items:center;">
+            <button class="btn ${p.inField ? 'btn-green' : 'btn-blue'}" style="width: 48px; padding: 5px 2px; font-size: 0.6rem;" onclick="toggleRosterFieldStatus(${p.id})">${p.inField ? 'Banco' : '5 Inicial'}</button>
+            <button class="btn btn-adjust-custom" style="width: 46px; padding: 5px 2px; font-size: 0.6rem;" onclick="togglePlayerPosition(${p.id})">${p.position === 'gr' ? '➔ Jog' : '➔ GR'}</button>
+            <button class="btn btn-red" style="width: 52px; padding: 5px 2px; font-size: 0.65rem; flex: none;" onclick="deletePlayer(${p.id})">Apagar</button>
+          </div>
+        `;
+        rosterContainer.appendChild(rcard);
+
+        // Timeline
+        let tRow = document.createElement('div');
+        tRow.className = 'timeline-row';
+        
+        let stints1PHtml = '';
+        let stints2PHtml = '';
+
+        let allStints1P = [...p.stints1P];
+        if (p.inField && period === 1 && p.stintCurrent > 0) {
+          allStints1P.push({
+            duration: p.stintCurrent,
+            start: p.stintStartTime !== null ? formatTime(p.stintStartTime) : "--:--",
+            end: formatTime(timerSec)
+          });
+        }
+
+        let allStints2P = [...p.stints2P];
+        if (p.inField && period === 2 && p.stintCurrent > 0) {
+          allStints2P.push({
+            duration: p.stintCurrent,
+            start: p.stintStartTime !== null ? formatTime(p.stintStartTime) : "--:--",
+            end: formatTime(timerSec)
+          });
+        }
+
+        if (allStints1P.length === 0) {
+          stints1PHtml = `<span style="font-size:0.65rem; color:#8ba2b5;">Sem registo</span>`;
+        } else {
+          allStints1P.forEach((stint, idx) => {
+            let cls = 'stint-pill';
+            if (stint.duration > 225) cls = 'stint-pill over-limit';
+            else if (stint.duration > 180) cls = 'stint-pill warning-limit';
+            let tooltipText = `Ent: ${stint.start} ➔ Sai: ${stint.end}`;
+            stints1PHtml += `<div class="${cls}" title="${tooltipText}">S${idx+1}: ${formatTime(stint.duration)}</div>`;
+          });
+        }
+
+        if (allStints2P.length === 0) {
+          stints2PHtml = `<span style="font-size:0.65rem; color:#8ba2b5;">Sem registo</span>`;
+        } else {
+          allStints2P.forEach((stint, idx) => {
+            let cls = 'stint-pill';
+            if (stint.duration > 225) cls = 'stint-pill over-limit';
+            else if (stint.duration > 180) cls = 'stint-pill warning-limit';
+            let tooltipText = `Ent: ${stint.start} ➔ Sai: ${stint.end}`;
+            stints2PHtml += `<div class="${cls}" title="${tooltipText}">S${idx+1}: ${formatTime(stint.duration)}</div>`;
+          });
+        }
+
+        tRow.innerHTML = `
+          <div class="timeline-info">
+            <strong>${p.number} - ${p.name} ${p.position === 'gr' ? '(GR)' : ''}</strong>
+            <span style="font-family:monospace; color:#00e676;">[T] ${formatTime(totalTime)}</span>
+          </div>
+          <div class="timeline-part-section">
+            <div><strong>1P | ${formatTime(p.time1P)}</strong></div>
+            <div class="stints-container">${stints1PHtml}</div>
+          </div>
+          <div class="timeline-part-section" style="margin-top:6px;">
+            <div><strong>2P | ${formatTime(p.time2P)}</strong></div>
+            <div class="stints-container">${stints2PHtml}</div>
+          </div>
+        `;
+        timelineContainer.appendChild(tRow);
+      });
+
+      renderSavedReports();
+      if (records.length === 0) {
+        recordsContainer.innerHTML = `<p style="font-size:0.75rem; color:#8ba2b5; text-align:center;">Nenhum registo efetuado.</p>`;
+      } else {
+        records.forEach(rec => {
+          let recCard = document.createElement('div');
+          recCard.className = 'record-card';
+          let icon = '';
+          if (rec.type === 'golo_marcado') icon = '⚽ Golo Marcado';
+          else if (rec.type === 'golo_sofrido') icon = '❌ Golo Sofrido';
+          else icon = (rec.cardColor === 'Amarelo' ? '🟨 Amarelo' : '🟥 Vermelho');
+
+          let desc = rec.type === 'golo_sofrido' ? 'Adversário' : `${rec.playerNum} ${rec.playerName}`;
+
+          recCard.innerHTML = `
+            <div>
+              <strong style="color:${rec.type === 'golo_sofrido' ? '#ff5252' : '#00e676'};">${icon}</strong> (${rec.time} - ${rec.period}.ªP)<br>
+              <span style="color:#fff;">${desc}</span>
+            </div>
+            <button class="btn btn-red" style="padding:4px 8px; font-size:0.7rem; flex:none;" onclick="deleteRecord(${rec.id})">Apagar</button>
+          `;
+          recordsContainer.appendChild(recCard);
+        });
+      }
+    }
+
+    function renderPlayerCard(p, container) {
+      let isSel = (selectedOutId === p.id);
+      let totalTime = p.time1P + p.time2P;
+      let badgeClass = p.position === 'gr' ? 'num-badge gr-badge' : (p.inField ? 'num-badge active' : 'num-badge');
+
+      let card = document.createElement('div');
+      card.className = `player-card ${isSel ? 'selected' : ''}`;
+      card.onclick = () => handlePlayerClick(p.id);
+
+      if (p.inField) {
+        let activeTimeVal = p.stintCurrent;
+        let activeTimeStr = formatTime(activeTimeVal);
+        
+        let timeSpanStyle = "color: #8ba2b5;";
+        if (activeTimeVal > 225) {
+          timeSpanStyle = "font-weight: bold; color: #D63618;";
+        } else if (activeTimeVal > 180) {
+          timeSpanStyle = "font-weight: bold; color: #F2D65C;";
+        }
+
+        card.innerHTML = `
+          <div style="display:flex; align-items:center;">
+            <div class="${badgeClass}">${p.number}</div>
+            <div>
+              <strong style="font-size:0.9rem;">${p.name} ${p.position === 'gr' ? '(GR)' : ''}</strong>
+              <div style="font-size:0.7rem; font-family:monospace;">${formatTime(totalTime)} | Atual <span style="${timeSpanStyle}">${activeTimeStr}</span></div>
+            </div>
+          </div>
+          <span style="font-size:0.65rem; font-weight:bold; color:#00e676;">${isSel ? 'SAI ➔' : 'EM CAMPO'}</span>
+        `;
+      } else {
+        let allStints = period === 1 ? p.stints1P : p.stints2P;
+        let lastStintVal = allStints.length > 0 ? allStints[allStints.length - 1].duration : 0;
+        let anteriorStr = formatTime(lastStintVal);
+
+        let anteriorStyle = "font-family: monospace; color: #8ba2b5;";
+        if (lastStintVal > 225) {
+          anteriorStyle = "font-family: monospace; font-weight: bold; color: #D63618;";
+        } else if (lastStintVal > 180) {
+          anteriorStyle = "font-family: monospace; font-weight: bold; color: #F2D65C;";
+        } else if (lastStintVal >= 30) {
+          anteriorStyle = "font-family: monospace; font-weight: bold; color: #00e676;";
+        }
+
+        let restSec = p.benchStartTime - timerSec;
+        if (restSec < 0) restSec = 0;
+        let restStr = formatTime(restSec);
+
+        let restStyle = restSec > 180 ? "font-weight: bold; color: #00e676;" : "font-weight: bold; color: #ffffff;";
+
+        card.innerHTML = `
+          <div style="display:flex; align-items:center;">
+            <div class="${badgeClass}">${p.number}</div>
+            <div>
+              <strong style="font-size:0.9rem;">${p.name} ${p.position === 'gr' ? '(GR)' : ''}</strong>
+              <div style="font-size:0.7rem; font-family:monospace; color:#8ba2b5;">${formatTime(totalTime)} | Ant <span style="${anteriorStyle}">${anteriorStr}</span> | B <span style="${restStyle}">${restStr}</span></div>
+            </div>
+          </div>
+          <span style="font-size:0.65rem; font-weight:bold; color:#8ba2b5;">${selectedOutId ? 'ENTRA ↵' : 'BANCO'}</span>
+        `;
+      }
+      container.appendChild(card);
+    }
+
+    function openAddPlayerModal() {
+      document.getElementById('new-num').value = '';
+      document.getElementById('new-name').value = '';
+      document.getElementById('modal-add').classList.add('active');
+    }
+
+    function closeModal(id) {
+      document.getElementById(id).classList.remove('active');
+    }
+
+    function savePlayer() {
+      let num = document.getElementById('new-num').value.trim();
+      let name = document.getElementById('new-name').value.trim();
+      let pos = document.getElementById('new-pos').value;
+      if (!num || !name) return alert('Por favor preencha o número e o nome.');
+      
+      matchData.players.push({
+        id: Date.now(),
+        number: num,
+        name: name,
+        position: pos,
+        inField: false,
+        time1P: 0,
+        time2P: 0,
+        stintCurrent: 0,
+        stintStartTime: null,
+        benchStartTime: timerSec,
+        stints1P: [],
+        stints2P: []
+      });
+
+      saveData();
+      closeModal('modal-add');
+      renderUI();
+    }
+
+    function deletePlayer(id) {
+      if (confirm('Remover este atleta da equipa?')) {
+        matchData.players = matchData.players.filter(p => p.id !== id);
+        saveData();
+        renderUI();
+      }
+    }
+
+    function exportCSV() {
+      let matchTitle = matchData.title || 'Futsal Match';
+      let csv = "\uFEFF";
+      csv += `Jogo: "${matchTitle}"\n\n`;
+      csv += "Atleta;Posição;Parte;Stint;Duração;Entrada;Saída\n";
+      
+      (matchData.players || []).forEach(p => {
+        let playerLabel = `${p.number} ${p.name}`;
+        let posLabel = p.position === 'gr' ? 'GR' : 'Jogador';
+        
+        let stints1P_export = [...p.stints1P];
+        if (p.inField && period === 1 && p.stintCurrent > 0) {
+          stints1P_export.push({
+            duration: p.stintCurrent,
+            start: p.stintStartTime !== null ? formatTime(p.stintStartTime) : "--:--",
+            end: formatTime(timerSec)
+          });
+        }
+
+        let stints2P_export = [...p.stints2P];
+        if (p.inField && period === 2 && p.stintCurrent > 0) {
+          stints2P_export.push({
+            duration: p.stintCurrent,
+            start: p.stintStartTime !== null ? formatTime(p.stintStartTime) : "--:--",
+            end: formatTime(timerSec)
+          });
+        }
+
+        stints1P_export.forEach((s, idx) => {
+          csv += `"${playerLabel}";"${posLabel}";"1P";"S${idx+1}";"${formatTime(s.duration)}";"${s.start}";"${s.end}"\n`;
+        });
+
+        stints2P_export.forEach((s, idx) => {
+          csv += `"${playerLabel}";"${posLabel}";"2P";"S${idx+1}";"${formatTime(s.duration)}";"${s.start}";"${s.end}"\n`;
+        });
+      });
+      
+      if (matchData.records && matchData.records.length > 0) {
+        csv += `\n--- REGISTOS (GOLOS E CARTÕES) ---\nTipo;Detalhe;Atleta;Tempo;Parte\n`;
+        matchData.records.forEach(r => {
+          let detail = r.type === 'golo_marcado' ? 'Golo Marcado' : (r.type === 'golo_sofrido' ? 'Golo Sofrido' : `Cartão ${r.cardColor}`);
+          csv += `${r.type};${detail};#${r.playerNum} ${r.playerName};${r.time};${r.period}ª Parte\n`;
+        });
+      }
+
+      let blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      let url = URL.createObjectURL(blob);
+      let a = document.createElement("a");
+      a.href = url;
+      a.download = `futsal_stints.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    document.getElementById('matchTitleInput').value = matchData.title || 'Sub-19 vs Equipa';
+    initStintsOnLoad();
+    updateDisplay();
+    renderUI();
+    if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) {
+      window.addEventListener("load", () => navigator.serviceWorker.register("./service-worker.js").catch(err => console.warn("Service worker:", err)));
+    }
+  </script>
+</body>
+</html>
