@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>FutsalData 20-20</title>
   <meta name="theme-color" content="#0b131e">
-  <meta name="description" content="FutsalData 20-20 — gestão de tempos, substituições e estatísticas de futsal.">
+  <meta name="description" content="Futsal Data 20-20 — gestão de tempos num jogo de futsal">
   <link rel="manifest" href="manifest.json">
   <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
@@ -64,6 +64,10 @@
     .form-group select, .form-group input { width: 100%; padding: 8px; background: #1a293a; border: 1px solid #1e3146; color: #fff; border-radius: 6px; font-size: 0.8rem; }
     
     .record-card { background: rgba(255,255,255,0.03); border: 1px solid #1e3146; border-radius: 8px; padding: 8px 10px; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; }
+
+    .squad-box { background: rgba(255,255,255,0.03); border: 1px solid #1e3146; border-radius: 10px; padding: 10px; margin-bottom: 14px; }
+    .squad-controls { display: flex; gap: 6px; align-items: center; margin-top: 6px; }
+    .squad-select { flex: 1; padding: 8px; background: #1a293a; border: 1px solid #1e3146; color: #00e676; font-weight: bold; border-radius: 6px; font-size: 0.8rem; }
 
     .modal { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.85); display: none; align-items: center; justify-content: center; padding: 16px; z-index: 10; }
     .modal.active { display: flex; }
@@ -177,12 +181,41 @@
 
     <!-- EQUIPA -->
     <div id="tab-plantel" class="tab-content">
+      <div class="squad-box">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <span class="section-title" style="margin:0;">Plantéis Guardados</span>
+          <button class="btn btn-blue" style="padding:4px 8px; font-size:0.7rem; flex:none;" onclick="openNewSquadModal()">+ Novo Plantel</button>
+        </div>
+        <div class="squad-controls">
+          <select id="squadSelect" class="squad-select" onchange="switchSquad(this.value)"></select>
+          <button class="btn btn-adjust-custom" style="padding:7px 8px; font-size:0.7rem; flex:none; min-width:auto;" title="Renomear plantel" onclick="renameCurrentSquad()">✎</button>
+          <button class="btn btn-red" style="padding:7px 8px; font-size:0.7rem; flex:none; min-width:auto;" title="Apagar plantel" onclick="deleteCurrentSquad()">Apagar</button>
+        </div>
+      </div>
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
         <span class="section-title" style="margin:0;">Equipa | Escolher 5 Inicial</span>
         <button class="btn btn-green" style="padding:6px 10px; font-size:0.75rem; flex:none;" onclick="openAddPlayerModal()">+ Adicionar</button>
       </div>
       <p style="font-size:0.7rem; color:#8ba2b5; margin-bottom:8px;">Alterar jogador (GR ou campo) e escolher 5 inicial e suplentes.</p>
       <div id="roster-list"></div>
+    </div>
+  </div>
+
+  <!-- MODAL NOVO PLANTEL -->
+  <div id="modal-new-squad" class="modal">
+    <div class="modal-box">
+      <h3 style="font-size: 1rem; margin-bottom: 8px;">Novo Plantel</h3>
+      <label style="font-size:0.75rem; color:#8ba2b5;">Nome da Equipa / Escalão:</label>
+      <input type="text" id="new-squad-name" placeholder="Ex: Sub-17, Seniores...">
+      <label style="font-size:0.75rem; color:#8ba2b5;">Base inicial:</label>
+      <select id="new-squad-template">
+        <option value="empty">Plantel vazio (adicionar do zero)</option>
+        <option value="copy">Copiar jogadores do plantel atual</option>
+      </select>
+      <div class="btn-row">
+        <button class="btn" style="background:#263238; color:#fff;" onclick="closeModal('modal-new-squad')">Cancelar</button>
+        <button class="btn btn-green" onclick="createNewSquad()">Criar</button>
+      </div>
     </div>
   </div>
 
@@ -265,14 +298,88 @@
       { id: 24, number: '24', name: 'Gui', position: 'gr', inField: false, time1P: 0, time2P: 0, stintCurrent: 0, stintStartTime: null, benchStartTime: 1200, stints1P: [], stints2P: [] }
     ];
 
-    let matchData = JSON.parse(localStorage.getItem('futsal_single_match_store_v10')) || {
-      title: 'Sub-19 vs Equipa',
-      players: JSON.parse(JSON.stringify(defaultPlayers)),
+    function hydratePlayersForMatch(rosterList, startSec = 1200) {
+      return (rosterList || []).map(p => ({
+        id: p.id,
+        number: p.number,
+        name: p.name,
+        position: p.position || 'jogador',
+        inField: !!p.inField,
+        time1P: 0,
+        time2P: 0,
+        stintCurrent: 0,
+        stintStartTime: p.inField ? startSec : null,
+        benchStartTime: startSec,
+        stints1P: [],
+        stints2P: []
+      }));
+    }
+
+    function extractRosterTemplate(playersList) {
+      return (playersList || []).map(p => ({
+        id: p.id,
+        number: p.number,
+        name: p.name,
+        position: p.position || 'jogador',
+        inField: !!p.inField
+      }));
+    }
+
+    let squadsStore = null;
+    try {
+      squadsStore = JSON.parse(localStorage.getItem('futsal_squads_store_v1'));
+    } catch (e) { squadsStore = null; }
+
+    let legacyMatchData = null;
+    try {
+      legacyMatchData = JSON.parse(localStorage.getItem('futsal_single_match_store_v10'));
+    } catch (e) { legacyMatchData = null; }
+
+    if (!squadsStore || !Array.isArray(squadsStore.squads) || squadsStore.squads.length === 0) {
+      let initialSub19Players = (legacyMatchData && Array.isArray(legacyMatchData.players))
+        ? extractRosterTemplate(legacyMatchData.players)
+        : extractRosterTemplate(defaultPlayers);
+
+      squadsStore = {
+        activeSquadId: 'squad-sub19',
+        squads: [
+          { id: 'squad-sub19', name: 'Sub-19', players: initialSub19Players },
+          { id: 'squad-sub18', name: 'Sub-18', players: [] },
+          { id: 'squad-sub17', name: 'Sub-17', players: [] }
+        ]
+      };
+      localStorage.setItem('futsal_squads_store_v1', JSON.stringify(squadsStore));
+    }
+
+    function getActiveSquad() {
+      let sq = squadsStore.squads.find(s => s.id === squadsStore.activeSquadId);
+      if (!sq) {
+        sq = squadsStore.squads[0];
+        squadsStore.activeSquadId = sq.id;
+      }
+      return sq;
+    }
+
+    function saveSquadsStore() {
+      localStorage.setItem('futsal_squads_store_v1', JSON.stringify(squadsStore));
+    }
+
+    function syncActiveSquadRoster() {
+      let sq = getActiveSquad();
+      if (sq && matchData && Array.isArray(matchData.players)) {
+        sq.players = extractRosterTemplate(matchData.players);
+        saveSquadsStore();
+      }
+    }
+
+    let matchData = legacyMatchData || {
+      title: getActiveSquad().name + ' vs Equipa',
+      players: hydratePlayersForMatch(getActiveSquad().players, 1200),
       records: []
     };
 
     if (Array.isArray(matchData)) {
-      matchData = { title: 'Sub-19 vs Equipa', players: matchData, records: [] };
+      matchData = { title: getActiveSquad().name + ' vs Equipa', players: matchData, records: [] };
     }
     if (!matchData.records) matchData.records = [];
     matchData.players.forEach(p => {
@@ -464,11 +571,8 @@
         timerSec = 1200;
         period = 1;
         document.getElementById('period-badge').innerText = '1.ª PARTE';
-        if (matchData && matchData.players) {
-          matchData.players.forEach((p, idx) => {
-            p.time1P = 0; p.time2P = 0; p.stintCurrent = 0; p.stintStartTime = (idx < 5) ? timerSec : null; p.benchStartTime = 1200; p.stints1P = []; p.stints2P = []; p.inField = (idx < 5);
-          });
-        }
+        let sq = getActiveSquad();
+        matchData.players = hydratePlayersForMatch(sq.players, 1200);
         matchData.records = [];
         selectedOutId = null;
         updateDisplay();
@@ -479,6 +583,122 @@
 
     function saveData() {
       localStorage.setItem('futsal_single_match_store_v10', JSON.stringify(matchData));
+    }
+
+    function switchSquad(newSquadId) {
+      let targetSquad = squadsStore.squads.find(s => s.id === newSquadId);
+      if (!targetSquad) return;
+
+      let hasProgress = timerSec < 1200 || (matchData.records && matchData.records.length > 0) ||
+                        (matchData.players || []).some(p => p.time1P > 0 || p.time2P > 0);
+      if (hasProgress) {
+        if (!confirm('Mudar para o plantel "' + targetSquad.name + '" vai reiniciar o cronómetro e os registos do jogo atual. Continuar?')) {
+          document.getElementById('squadSelect').value = squadsStore.activeSquadId;
+          return;
+        }
+      }
+
+      if (timerRunning) toggleTimer();
+      squadsStore.activeSquadId = targetSquad.id;
+      saveSquadsStore();
+
+      timerSec = 1200;
+      period = 1;
+      document.getElementById('period-badge').innerText = '1.ª PARTE';
+      selectedOutId = null;
+
+      matchData.title = targetSquad.name + ' vs Equipa';
+      document.getElementById('matchTitleInput').value = matchData.title;
+      matchData.players = hydratePlayersForMatch(targetSquad.players, 1200);
+      matchData.records = [];
+
+      updateDisplay();
+      saveData();
+      renderUI();
+    }
+
+    function openNewSquadModal() {
+      document.getElementById('new-squad-name').value = '';
+      document.getElementById('new-squad-template').value = 'empty';
+      document.getElementById('modal-new-squad').classList.add('active');
+    }
+
+    function createNewSquad() {
+      let name = document.getElementById('new-squad-name').value.trim();
+      let template = document.getElementById('new-squad-template').value;
+      if (!name) return alert('Indica o novo plantel (ex: Sub-16).');
+
+      let basePlayers = (template === 'copy') ? extractRosterTemplate(matchData.players) : [];
+      let newSquad = {
+        id: 'squad-' + Date.now(),
+        name: name,
+        players: basePlayers
+      };
+
+      squadsStore.squads.push(newSquad);
+      squadsStore.activeSquadId = newSquad.id;
+      saveSquadsStore();
+      closeModal('modal-new-squad');
+
+      if (timerRunning) toggleTimer();
+      timerSec = 1200;
+      period = 1;
+      document.getElementById('period-badge').innerText = '1.ª PARTE';
+      selectedOutId = null;
+
+      matchData.title = newSquad.name + ' vs Equipa';
+      document.getElementById('matchTitleInput').value = matchData.title;
+      matchData.players = hydratePlayersForMatch(newSquad.players, 1200);
+      matchData.records = [];
+
+      updateDisplay();
+      saveData();
+      renderUI();
+    }
+
+    function renameCurrentSquad() {
+      let sq = getActiveSquad();
+      let newName = prompt('Novo nome para este plantel:', sq.name);
+      if (newName && newName.trim()) {
+        let oldPrefix = sq.name + ' vs';
+        sq.name = newName.trim();
+        saveSquadsStore();
+
+        if (matchData.title.startsWith(oldPrefix)) {
+          matchData.title = matchData.title.replace(oldPrefix, sq.name + ' vs');
+          document.getElementById('matchTitleInput').value = matchData.title;
+          saveData();
+        }
+        renderUI();
+      }
+    }
+
+    function deleteCurrentSquad() {
+      if (squadsStore.squads.length <= 1) {
+        return alert('Deves manter pelo menos um plantel guardado.');
+      }
+      let sq = getActiveSquad();
+      if (confirm('Eliminar definitivamente o plantel "' + sq.name + '"?')) {
+        squadsStore.squads = squadsStore.squads.filter(s => s.id !== sq.id);
+        let nextSq = squadsStore.squads[0];
+        squadsStore.activeSquadId = nextSq.id;
+        saveSquadsStore();
+
+        if (timerRunning) toggleTimer();
+        timerSec = 1200;
+        period = 1;
+        document.getElementById('period-badge').innerText = '1.ª PARTE';
+        selectedOutId = null;
+
+        matchData.title = nextSq.name + ' vs Equipa';
+        document.getElementById('matchTitleInput').value = matchData.title;
+        matchData.players = hydratePlayersForMatch(nextSq.players, 1200);
+        matchData.records = [];
+
+        updateDisplay();
+        saveData();
+        renderUI();
+      }
     }
 
     function switchTab(tabId, el) {
@@ -587,6 +807,7 @@
       let p = matchData.players.find(x => x.id === id);
       if (p) {
         p.position = p.position === 'gr' ? 'jogador' : 'gr';
+        syncActiveSquadRoster();
         saveData();
         renderUI();
       }
@@ -614,6 +835,7 @@
         player.stintStartTime = timerSec;
         player.stintCurrent = 0;
       }
+      syncActiveSquadRoster();
       saveData();
       renderUI();
     }
@@ -797,7 +1019,7 @@
       let csv = '\uFEFF' + `Jogo;${String(r.title||'').replace(/;/g,',')}\nData;${r.matchDate||''}\nResultado;${r.score?.for||0}-${r.score?.against||0}\n\n`;
       csv += 'Atleta;Posição;Parte;Stint;Duração;Entrada;Saída\n';
       (r.players||[]).forEach(p => ['stints1P','stints2P'].forEach((key,idx) => (p[key]||[]).forEach((st,i) => {
-        csv += `"#${p.number} ${String(p.name).replace(/"/g,'""')}";${p.position==='gr'?'GR':'Jogador'};${idx+1}P;S${i+1};${formatTime(st.duration||0)};${st.start||''};${st.end||''}\n`;
+        csv += `"${p.number} ${String(p.name).replace(/"/g,'""')}";${p.position==='gr'?'GR':'Jogador'};${idx+1}P;S${i+1};${formatTime(st.duration||0)};${st.start||''};${st.end||''}\n`;
       })));
       csv += '\nTipo;Detalhe;Atleta;Tempo;Parte\n';
       (r.records||[]).forEach(x => csv += `${x.type};${x.type==='cartao'?'Cartão '+x.cardColor:x.type==='golo_marcado'?'Golo marcado':'Golo sofrido'};${x.playerName||''};${x.time||''};${x.period||''}\n`);
@@ -841,6 +1063,12 @@
       let timelineContainer = document.getElementById('timeline-list');
       let recordsContainer = document.getElementById('records-list');
       let regPlayerSelect = document.getElementById('regPlayerSelect');
+      let squadSelect = document.getElementById('squadSelect');
+      if (squadSelect) {
+        squadSelect.innerHTML = squadsStore.squads.map(s =>
+          '<option value="' + s.id + '" ' + (s.id === squadsStore.activeSquadId ? 'selected' : '') + '>' + escapeReportHTML(s.name) + ' (' + (s.players || []).length + ' atletas)</option>'
+        ).join('');
+      }
 
       inFieldContainer.innerHTML = '';
       benchContainer.innerHTML = '';
@@ -850,7 +1078,7 @@
 
       let selectHtml = '';
       list.forEach(p => {
-        selectHtml += `<option value="${p.id}">#${p.number} ${p.name} (${p.position.toUpperCase()})</option>`;
+        selectHtml += `<option value="${p.id}">${p.number} ${p.name} (${p.position.toUpperCase()})</option>`;
       });
       regPlayerSelect.innerHTML = selectHtml;
 
@@ -868,6 +1096,10 @@
 
       inFieldPlayers.forEach(p => renderPlayerCard(p, inFieldContainer));
       benchPlayers.forEach(p => renderPlayerCard(p, benchContainer));
+
+      if (list.length === 0) {
+        rosterContainer.innerHTML = '<p style="font-size:0.75rem; color:#8ba2b5; text-align:center; padding: 14px 0;">Este plantel ainda não tem atletas. Clica em <strong>+ Adicionar</strong> para criar a equipa.</p>';
+      }
 
       list.forEach(p => {
         let totalTime = p.time1P + p.time2P;
@@ -1038,7 +1270,7 @@
             <div class="${badgeClass}">${p.number}</div>
             <div>
               <strong style="font-size:0.9rem;">${p.name} ${p.position === 'gr' ? '(GR)' : ''}</strong>
-              <div style="font-size:0.7rem; font-family:monospace; color:#8ba2b5;">${formatTime(totalTime)} | Ant <span style="${anteriorStyle}">${anteriorStr}</span> | B <span style="${restStyle}">${restStr}</span></div>
+              <div style="font-size:0.7rem; font-family:monospace; color:#8ba2b5;">${formatTime(totalTime)} | Ant <span style="${anteriorStyle}">${anteriorStr}</span> | Banco <span style="${restStyle}">${restStr}</span></div>
             </div>
           </div>
           <span style="font-size:0.65rem; font-weight:bold; color:#8ba2b5;">${selectedOutId ? 'ENTRA ↵' : 'BANCO'}</span>
@@ -1078,6 +1310,7 @@
         stints2P: []
       });
 
+      syncActiveSquadRoster();
       saveData();
       closeModal('modal-add');
       renderUI();
@@ -1086,6 +1319,7 @@
     function deletePlayer(id) {
       if (confirm('Remover este atleta da equipa?')) {
         matchData.players = matchData.players.filter(p => p.id !== id);
+        syncActiveSquadRoster();
         saveData();
         renderUI();
       }
@@ -1147,7 +1381,7 @@
       URL.revokeObjectURL(url);
     }
 
-    document.getElementById('matchTitleInput').value = matchData.title || 'Sub-19 vs Equipa';
+    document.getElementById('matchTitleInput').value = matchData.title || (getActiveSquad().name + ' vs Equipa');
     initStintsOnLoad();
     updateDisplay();
     renderUI();
